@@ -1,0 +1,20 @@
+[project]
+name = "cv-playground"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Sharad Shriyan",email = "sharad30.ss@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "torch (>=2.6.0,<3.0.0)",
+    "torchvision (>=0.21.0,<0.22.0)",
+    "streamlit (>=1.43.2,<2.0.0)",
+    "matplotlib (>=3.10.1,<4.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
