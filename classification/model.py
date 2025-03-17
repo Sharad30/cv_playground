@@ -32,22 +32,20 @@ class BinaryClassifier(nn.Module):
         else:
             self.backbone = model_fn(weights=None)
 
-        # Freeze backbone if specified
-        if freeze_backbone:
-            for param in self.backbone.parameters():
-                param.requires_grad = False
-
-        # Modify the final layer based on the model architecture
+        # Store backbone layers for later use
         if 'resnet' in model_name:
-            self.backbone.fc = nn.Sequential(
+            self.backbone_layers = list(self.backbone.children())[:-1]  # Remove the last FC layer
+            self.classifier = nn.Sequential(
                 nn.Linear(num_features, 256),
                 nn.ReLU(),
                 nn.Dropout(0.3),
                 nn.Linear(256, 1),
                 nn.Sigmoid()
             )
+            self.backbone = nn.Sequential(*self.backbone_layers)
         elif 'efficientnet' in model_name:
-            self.backbone.classifier = nn.Sequential(
+            self.backbone_layers = list(self.backbone.children())[:-1]
+            self.classifier = nn.Sequential(
                 nn.Linear(num_features, 256),
                 nn.ReLU(),
                 nn.Dropout(0.3),
@@ -71,8 +69,17 @@ class BinaryClassifier(nn.Module):
                 nn.Sigmoid()
             )
 
+        # Freeze backbone if specified
+        if freeze_backbone:
+            for param in self.backbone.parameters():
+                param.requires_grad = False
+
     def forward(self, x):
-        return self.backbone(x)
+        x = self.backbone(x)
+        if 'resnet' in self.model_name:
+            x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        return x
 
     def unfreeze_layers(self, num_layers=None):
         """Unfreeze the last n layers of the backbone"""
@@ -80,13 +87,26 @@ class BinaryClassifier(nn.Module):
             # Unfreeze all layers
             for param in self.backbone.parameters():
                 param.requires_grad = True
+            print("Unfroze all backbone layers")
         else:
-            # Get all parameters
-            parameters = list(self.backbone.parameters())
-            # Unfreeze the last n layers
-            for param in parameters[-num_layers:]:
-                param.requires_grad = True
+            # Get all backbone layers
+            if 'resnet' in self.model_name:
+                layers = list(self.backbone.children())
+                # Unfreeze the last n layers
+                for layer in layers[-num_layers:]:
+                    for param in layer.parameters():
+                        param.requires_grad = True
+                print(f"Unfroze last {num_layers} backbone layers")
 
     def get_trainable_params(self):
         """Return the number of trainable parameters"""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def get_total_params(self):
+        """Return the total number of parameters"""
+        return sum(p.numel() for p in self.parameters())
+
+    def print_trainable_layers(self):
+        """Print which layers are trainable"""
+        for name, param in self.named_parameters():
+            print(f"{name}: trainable={param.requires_grad}")

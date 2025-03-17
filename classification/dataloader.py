@@ -25,17 +25,43 @@ class BinaryDataset(Dataset):
         return image, binary_label, self.indices[idx]  # Return original index as well
 
 class ImageDataLoader:
-    def __init__(self, data_dir, batch_size=32, img_size=(224, 224)):
+    def __init__(self, data_dir, batch_size=32, img_size=(224, 224), transform=None):
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.img_size = img_size
+        
+        # Default transform if none provided
+        if transform is None:
+            self.transform = transforms.Compose([
+                transforms.Resize(self.img_size),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            ])
+        else:
+            self.transform = transform
 
-        self.transform = transforms.Compose([
-            transforms.Resize(self.img_size),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-        ])
+    @staticmethod
+    def get_default_transforms(img_size=(224, 224), train=True):
+        """
+        Get default transforms for training or validation
+        """
+        if train:
+            return transforms.Compose([
+                transforms.Resize(img_size),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomRotation(10),
+                transforms.RandomAffine(0, shear=10, scale=(0.8, 1.2)),
+                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            ])
+        else:
+            return transforms.Compose([
+                transforms.Resize(img_size),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            ])
 
     def get_data_loader(self):
         # Load CIFAR-10 dataset

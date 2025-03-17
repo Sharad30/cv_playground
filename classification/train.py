@@ -5,7 +5,7 @@ import torch.nn as nn
 from dataloader import ImageDataLoader
 from model import BinaryClassifier
 from config import (
-    DATA_DIR, NUM_EPOCHS, BATCH_SIZE, 
+    DATA_DIR, NUM_EPOCHS, BATCH_SIZE, IMG_SIZE,
     MODEL_NAME, PRETRAINED, FREEZE_BACKBONE,
     LEARNING_RATE, UNFREEZE_LAYERS
 )
@@ -15,7 +15,16 @@ def train_model(data_dir=DATA_DIR, num_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    data_loader = ImageDataLoader(data_dir, batch_size).get_data_loader()
+    # Get transforms for training
+    train_transforms = ImageDataLoader.get_default_transforms(img_size=IMG_SIZE, train=True)
+    
+    # Create data loader with custom transforms
+    data_loader = ImageDataLoader(
+        data_dir, 
+        batch_size=batch_size,
+        img_size=IMG_SIZE,
+        transform=train_transforms
+    ).get_data_loader()
     
     # Initialize model with specified configuration
     model = BinaryClassifier(
@@ -26,13 +35,17 @@ def train_model(data_dir=DATA_DIR, num_epochs=NUM_EPOCHS, batch_size=BATCH_SIZE)
 
     # Print model details
     print(f"\nModel Architecture: {MODEL_NAME}")
-    print(f"Trainable parameters: {model.get_trainable_params():,}")
+    print(f"Total parameters: {model.get_total_params():,}")
+    print(f"Initial trainable parameters: {model.get_trainable_params():,}")
 
     # Unfreeze specified layers if needed
     if UNFREEZE_LAYERS is not None:
         model.unfreeze_layers(UNFREEZE_LAYERS)
         print(f"Unfrozen last {UNFREEZE_LAYERS} layers")
         print(f"Updated trainable parameters: {model.get_trainable_params():,}")
+        
+    # Print which layers are trainable
+    model.print_trainable_layers()
 
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
